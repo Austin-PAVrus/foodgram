@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import RecipeViewSet, IngredientViewSet, TagViewSet, UserViewSet
+from .views import IngredientViewSet, RecipeViewSet, TagViewSet, UserViewSet
 
 
 users_auth_urls = [

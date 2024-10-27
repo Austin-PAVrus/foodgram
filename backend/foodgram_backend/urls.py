@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.urls import include, path
 
-from api.views import redirect_from_recipe_short_url
 from .settings import SHORT_RECIPE_ENDPOINT
+from api.views import redirect_from_recipe_short_url
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),

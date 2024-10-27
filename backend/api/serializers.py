@@ -5,7 +5,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.files.base import ContentFile
 from django.db import transaction
-from rest_framework import serializers, validators, exceptions
+from rest_framework import exceptions, serializers, validators
 
 from recipes.models import (
     FavoriteRecipe, Ingredient, Recipe, RecipeIngredient, RecipeTag,

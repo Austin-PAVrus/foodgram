@@ -24,12 +24,14 @@ from .serializers import (
     SubscriptionSerializer,
     TagSerializer,
     UserAvatarSerializer,
-    UserShowSerializer,
     UserCreateSerializer,
+    UserShowSerializer,
 )
 from foodgram_backend.settings import (
     FRONTEND_RECIPE_ENDPOINT,
-    SELF_ENDPOINT, SUBSCRIPTIONS_ENDPOINT, SHORT_RECIPE_ENDPOINT
+    SELF_ENDPOINT,
+    SHORT_RECIPE_ENDPOINT,
+    SUBSCRIPTIONS_ENDPOINT,
 )
 from recipes.models import (
     FavoriteRecipe, Ingredient, Recipe, RecipeLinkShortener, ShoppingCart, Tag
