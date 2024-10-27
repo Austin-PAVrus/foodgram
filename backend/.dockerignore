@@ -1,0 +1,5 @@
+collected_static
+media
+venv
+.git
+db.sqlite3
