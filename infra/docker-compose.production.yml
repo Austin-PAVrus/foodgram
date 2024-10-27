@@ -1,5 +1,3 @@
-version: '3'
-
 volumes:
   pg_data:
   static:
@@ -23,8 +21,8 @@ services:
     image: pavrus/foodgram-backend
     env_file: .env
     volumes:
-      - static:/static
-      - media:/media
+      - static:/app/collected_static/
+      - media:/app/media
   frontend:
     image: pavrus/foodgram-frontend
     env_file: .env
@@ -40,5 +38,5 @@ services:
     ports:
       - 8080:80
     volumes:
-      - static:/static
+      - static:/usr/share/nginx/html/
       - media:/media
