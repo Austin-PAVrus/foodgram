@@ -1,4 +1,4 @@
-## Foodrgam
+# Foodrgam
 Продуктовый помощник - один из ключевых проектов курса Backend-разработки в Яндекс Практикумке.
 
 Проект представляет сервис публикации рецептов. Пользователи могут создавать свои и просматривать чужие рецепты, добавлять их в избранное и/или корзину, подписываться на авторов. Набор рецептов в корзине позволяет впоследстиве скачать список ингридиентов, необхожимых для приготовления всех добавленных в корзину блюд.
@@ -6,27 +6,81 @@
 ## Технологии
 Сервис представляет собой фронтенд виде одностраничного приложения на REACT и REST API-бэкенд на Django + DjangoRestFramework. Для развёртывания проекта используется Docker. Образы можно собрать самостоятельно и загрузить на Dokcer Hub. Для жтого нужно отредактивроать и GitFlow (заменить учётные данные на свои) и использовать отредактированный docker-compose.production из папки imfra.
 
-## API-документация
-После запуска преокта доступна по адресу http(s)://DOMAIN/api/docs/
+## Техностек бэкенда
+- Python 3.9
+- Django 3.2
+- Django REST Framework 3.12
+- Djoser 2.2
 
-## Postman-коллекция для проверки API
 
-Файл `foodgram.postman_collection.json` содержит postman-коллекцию - набор заранее подготовленных запросов для проверки работы API.
+# Развертывание проекта
 
-## Развертывание проекта
+## Только бэкенд, на локальном компьютере
 
-# Развертывание на локальном сервере
+Для Windows предврительно необходимо утсновить:
+- [Bash](https://gitforwindows.org)
+- [Python](https://www.python.org/downloads/)
+- [Git](https://git-scm.com/downloads/win)
 
-- Установите на сервере docker и docker-compose
-- Создайте файл /infra/.env. Шаблон для заполнения файла нахоится в /infra/.env.example
-- Выполните команду docker-compose up -d --buld
+_Внимание! Команды ниже приведены для ОС Windows. для Mac и Linux вместо команды **python** нужно использовать **python3**_.
+
+### Клонировать репозиторий и перейти в него в командной строке
+```
+git clone  https://github.com/Austin-PAVrus/foodgram.git
+```
+```
+cd foodgram/backend
+```
+### Создать виртуальное окружение
+```
+python -m venv venv
+```
+### Активировать виртуальное окружене
+_Windows
+```
+source venv/Scripts/activate
+```
+_Mac и Linux
+```
+source venv/bin/activate
+```
+### Установить зависимости из файла requirements.text
+```
+python -m pip install --update pip
+pip install -r requirements.txt
+```
+### Выполнить миграции
+```
+python manage.py migrate
+```
+### Создать суперпользователя
+```
+python manage.py createsuperuser
+```
+### Выгрузить данные продуктов и ярлыков из json-файлов в базу данных
+```
+python manage.py fill_db
+```
+### Запустить проект
+```
+python manage.py runserver
+```
+___
+_После выполнения указанных команд вы сможете успешно пользоваться функционалом бэкенда нашего проекта_ **foodgram**.  
+
+
+## Весь проект, на сернвере или локальном компьютере c Docker
+
+- Установите на сервере `docker` и `docker-compose`
+- Создайте файл `/infra/.env`. Шаблон для заполнения файла нахоится в `/infra/.env.example`
+- Выполните команду `docker-compose up -d --buld`
 - Контейгер фронтенда после выполнения необходимых операций завершится. Это нормально.
-- Создайте суперюзера docker-compose exec backend python manage.py createsuperuser
-- Заполните базу ингредиентами и тэгами docker-compose exec backend python manage.py fill_db_from_json
+- Создайте суперюзера `docker-compose exec -it backend python manage.py createsuperuser`
+- Заполните базу ингредиентами и тэгами `docker-compose exec backend python manage.py fill_db`
 - Для добавления ингрижиентов/тегов нужно поспользоваться админкой Django http://localhost/admin
 - Рецепты и пользователи добавляются как через сам сайт, так и через админку
 - Документация к API находится по адресу: http://localhost/api/docs/
 
-## Автор реализации бэкенда
-Александр Прохоров
+#Автор реализации бэкенда
+[Прохоров Александр](https://github.com/Austin-PAVrus)  
 

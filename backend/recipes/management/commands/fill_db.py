@@ -1,4 +1,5 @@
 import json
+from os import path
 
 from django.core.management.base import BaseCommand
 
@@ -17,12 +18,10 @@ JSON_PARAMS = (
     (
         Ingredient,
         'ingredients.json',
-        None,
     ),
     (
         Tag,
         'tags.json',
-        None,
     )
 )
 
@@ -34,25 +33,15 @@ class Command(BaseCommand):
         return model.objects.get(id=id)
 
     def fill_model_table(
-        self, model, file_name, related_fields=None, **kwargs
+        self, model, file_name, **kwargs
     ):
         with open(
-            f'{kwargs["dir"]}{file_name}', 'r', encoding='utf-8'
+            path.join(kwargs["dir"], file_name), 'r', encoding='utf-8'
         ) as file:
             json_data = json.load(file)
-            for record in json_data:
-                try:
-                    if not related_fields:
-                        model.objects.get_or_create(**record)
-                    else:
-                        fields = {}
-                        for related_model, field, column in related_fields:
-                            fields[field] = self.get_model_obj(
-                                related_model, record.pop(column)
-                            )
-                        model.objects.get_or_create(**fields, **record)
-                except Exception:
-                    continue
+            model.objects.bulk_create(
+                model(**record) for record in json_data
+            )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -60,7 +49,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **kwargs):
-        for model, file_name, related_fields in JSON_PARAMS:
+        for model, file_name in JSON_PARAMS:
             self.fill_model_table(
-                model, file_name, related_fields=related_fields, **kwargs
+                model, file_name, **kwargs
             )

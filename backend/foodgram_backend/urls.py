@@ -1,15 +1,18 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from .settings import SHORT_RECIPE_ENDPOINT
-from api.views import redirect_from_recipe_short_url
+from recipes.views import get_recipe
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
-    path(
-        f'{SHORT_RECIPE_ENDPOINT}/<str:short_url>/',
-        redirect_from_recipe_short_url
-    ),
+    path(f'{settings.SHORT_RECIPE_ENDPOINT}/<int:pk>/', get_recipe),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(
+        settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
+    )
