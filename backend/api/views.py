@@ -10,8 +10,9 @@ from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import (
-    AllowAny, IsAuthenticated,
+    AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 )
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.validators import ValidationError
 
@@ -25,7 +26,7 @@ from .serializers import (
     TagSerializer,
     UserAvatarSerializer,
 )
-from .utils import generate_shopping_file
+from .utils import generate_content
 
 from recipes.models import (
     FavoriteRecipe, Ingredient, Recipe, ShoppingCart, Subscription, Tag
@@ -37,6 +38,7 @@ ERROR_NO_RECIPE = 'Рецепт не найден'
 ERROR_NO_SELF_SUBSCRIPTION = 'Самоподписка не поддерживается'
 ERROR_ALREADY_SUBSCRIPTED = 'Подписка уже существует'
 ERROR_RECIPE_ALREADY_ADDED = 'Рецепт уже добавлен'
+ERROR_EMPTY_CART = 'Корзина пуста'
 
 User = get_user_model()
 
@@ -52,7 +54,7 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(detail=False,
             methods=('put', 'delete'),
-            url_path=settings.SELF_ENDPOINT + '/avatar',
+            url_path=f'{settings.SELF_ENDPOINT}/avatar',
             permission_classes=(IsAuthenticated,)
             )
     def avatar_endpoint(self, request):
@@ -86,18 +88,18 @@ class UserViewSet(DjoserUserViewSet):
             ).delete()[0] > 0:
                 return Response(status=HTTPStatus.NO_CONTENT)
             raise ValidationError({'detail': ERROR_NO_SUBSCRIPRION})
-        if not Subscription.objects.get_or_create(
+        if Subscription.objects.get_or_create(
             user=user,
             author=author
         )[1]:
-            raise ValidationError({'detail': ERROR_ALREADY_SUBSCRIPTED})
-        return Response(
-            SubscriptionSerializer(
-                author,
-                context={'request': request},
-            ).data,
-            status=HTTPStatus.CREATED
-        )
+            return Response(
+                SubscriptionSerializer(
+                    author,
+                    context={'request': request},
+                ).data,
+                status=HTTPStatus.CREATED
+            )
+        raise ValidationError({'detail': ERROR_ALREADY_SUBSCRIPTED})
 
     @action(detail=False,
             methods=('get',),
@@ -140,13 +142,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     queryset = Recipe.objects.all().prefetch_related()
     serializer_class = RecipeSerializer
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly,)
     filterset_class = RecipeFilter
-
-    def get_permissions(self):
-        if self.action == 'create':
-            return (IsAuthenticated(),)
-        return super().get_permissions()
 
     @staticmethod
     def modify_recipe_connection(request, pk, model):
@@ -158,18 +155,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
             ).delete()[0] > 0:
                 return Response(status=HTTPStatus.NO_CONTENT)
             raise ValidationError({'detail': ERROR_NO_RECIPE})
-        if not model.objects.get_or_create(
+        if model.objects.get_or_create(
             user=request.user,
             recipe=recipe,
         )[1]:
-            raise ValidationError({'detail': ERROR_RECIPE_ALREADY_ADDED})
-        return Response(
-            RecipeShortSafeSerializer(
-                recipe,
-                context={'request': request},
-            ).data,
-            status=HTTPStatus.CREATED
-        )
+            return Response(
+                RecipeShortSafeSerializer(
+                    recipe,
+                    context={'request': request},
+                ).data,
+                status=HTTPStatus.CREATED
+            )
+        raise ValidationError({'detail': ERROR_RECIPE_ALREADY_ADDED})
 
     @action(detail=True,
             methods=('post', 'delete'),
@@ -199,20 +196,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
     def download_shopping_cart(self, request):
         user = request.user
-        if not user.carts.exists():
-            return Response(status=HTTPStatus.NOT_FOUND)
+        if not user.shoppingcarts.exists():
+            raise NotFound(
+                {'User': ERROR_EMPTY_CART}
+            )
         current_time = datetime.now()
         return FileResponse(
-            generate_shopping_file(
-                current_time=current_time,
+            generate_content(
                 ingredients=Ingredient.objects.filter(
-                    recipes_ingredients__recipe__carts__user=user
+                    recipes_ingredients__recipe__shoppingcarts__user=user
                 ).annotate(
                     amount=Sum("recipes_ingredients__amount")
                 ).order_by('name').values(),
                 recipes=Recipe.objects.filter(
-                    carts__user=user
-                ).order_by('name').values('name'),
+                    shoppingcarts__user=user
+                ).order_by('name').values(),
             ),
             as_attachment=True,
             filename=f'to_buy_{current_time.strftime("%Y%m%d")}.txt'
@@ -225,7 +223,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
     def get_link(self, request, pk):
         if not Recipe.objects.filter(id=pk).exists():
-            raise ValidationError(code=HTTPStatus.NOT_FOUND)
+            raise NotFound(
+                {'Recipe': 'pk'},
+            )
         return Response(
             {'short-link': f'/{settings.SHORT_RECIPE_ENDPOINT}/{pk}'},
             status=HTTPStatus.OK,

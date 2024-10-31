@@ -1,8 +1,6 @@
-import json
-
-from django.core.management.base import BaseCommand
-
 from ...models import Tag
+from ..fill_command import AbstractImportJsonCommand
+
 
 DEFAULT_FILENAME = 'data/tags.json'
 COMMAND_HELP = '''fill_tags - заполняет базу данных ярлыками
@@ -13,24 +11,10 @@ COMMAND_HELP = '''fill_tags - заполняет базу данных ярлы�
 DATA_HELP = 'Файл json для заполнения базы данных ярлыками.'
 
 
-class Command(BaseCommand):
+class Command(AbstractImportJsonCommand):
     help = COMMAND_HELP
 
-    def add_arguments(self, parser):
-        parser.add_argument(
-            'filename',
-            type=str,
-            nargs='?',
-            help=DATA_HELP,
-            default=DEFAULT_FILENAME,
-        )
-
-    def handle(self, *args, **kwargs):
-        filename = kwargs['filename']
-        with open(
-            filename, 'r', encoding='utf-8'
-        ) as file:
-            Tag.objects.bulk_create(
-                (Tag(**record) for record in json.load(file)),
-                ignore_conflicts=True,
-            )
+    class Meta:
+        model = Tag
+        default_filename = DEFAULT_FILENAME
+        data_help = DATA_HELP

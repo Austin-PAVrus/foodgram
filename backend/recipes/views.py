@@ -1,11 +1,15 @@
+from django.conf import settings
+from django.http import Http404
 from django.shortcuts import redirect
 
-from foodgram_backend.settings import FRONTEND_RECIPE_ENDPOINT
+from .models import Recipe
 
 
 def get_recipe(request, pk):
-    return redirect(
-        request.build_absolute_uri(
-            f'/{FRONTEND_RECIPE_ENDPOINT}/{pk}/'
+    if Recipe.object.filter(id=pk).exists():
+        return redirect(
+            request.build_absolute_uri(
+                f'/{settings.FRONTEND_RECIPE_ENDPOINT}/{pk}/'
+            )
         )
-    )
+    raise Http404({'Recipe': pk})

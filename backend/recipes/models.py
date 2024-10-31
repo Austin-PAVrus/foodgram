@@ -78,10 +78,10 @@ class User(AbstractUser):
 
 class Subscription(models.Model):
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='authors'
+        User, on_delete=models.CASCADE, related_name='subscribers'
     )
     author = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='subscribers'
+        User, on_delete=models.CASCADE, related_name='authors'
     )
 
     class Meta:
@@ -105,7 +105,7 @@ class Tag(models.Model):
     name = models.CharField(
         unique=True,
         max_length=MAX_RECIPE_NAME_LENGTH,
-        verbose_name='Название ярлыка',
+        verbose_name='Название',
         help_text='Введите название ярлыка',
     )
 
@@ -275,7 +275,7 @@ class AbstractUserRecipe(models.Model):
     class Meta:
         abstract = True
         ordering = ('user', 'recipe',)
-        default_related_name = '%(class)s'
+        default_related_name = '%(class)ss'
         constraints = (
             models.UniqueConstraint(
                 fields=('user', 'recipe',),
@@ -292,7 +292,6 @@ class FavoriteRecipe(AbstractUserRecipe):
     class Meta(AbstractUserRecipe.Meta):
         verbose_name = 'Избранный рецепт'
         verbose_name_plural = 'Избранные рецепты'
-        default_related_name = 'favs'
 
 
 class ShoppingCart(AbstractUserRecipe):
@@ -300,4 +299,3 @@ class ShoppingCart(AbstractUserRecipe):
     class Meta(AbstractUserRecipe.Meta):
         verbose_name = 'Продуктовая корзина'
         verbose_name_plural = 'Продуктовые корзины'
-        default_related_name = 'carts'

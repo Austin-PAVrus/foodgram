@@ -8,9 +8,9 @@
 
 ## Техностек бэкенда
 - Python 3.9
-- Django 3.2
-- Django REST Framework 3.12
-- Djoser 2.2
+- Django
+- Django REST Framework
+- Djoser
 
 
 # Развертывание проекта
@@ -24,12 +24,9 @@
 
 _Внимание! Команды ниже приведены для ОС Windows. для Mac и Linux вместо команды **python** нужно использовать **python3**_.
 
-### Клонировать репозиторий и перейти в него в командной строке
+### Перейти в директорию бекенда из домашней директории
 ```
-git clone  https://github.com/Austin-PAVrus/foodgram.git
-```
-```
-cd foodgram/backend
+cd backend
 ```
 ### Создать виртуальное окружение
 ```
@@ -57,19 +54,22 @@ python manage.py migrate
 ```
 python manage.py createsuperuser
 ```
-### Выгрузить данные продуктов и ярлыков из json-файлов в базу данных
+### Импортировать данные продуктов и ярлыков из json-файлов в базу данных
 ```
-python manage.py fill_db
+python manage.py fill_ingredients
+python manage.py fill_tags
 ```
 ### Запустить проект
 ```
 python manage.py runserver
 ```
 ___
-_После выполнения указанных команд вы сможете успешно пользоваться функционалом бэкенда нашего проекта_ **foodgram**.  
+_После выполнения указанных команд вы сможете успешно пользоваться функционалом бэкенда нашего проекта_ **foodgram**.
+
+### В состянии отладки (включен по умолчаниб) документация по API доступна по адресу http://localhost:8000/api/docs/redoc.html
 
 
-## Весь проект, на сернвере или локальном компьютере c Docker
+## Весь проект, на сервере или локальном компьютере c Docker
 
 - Установите на сервере `docker` и `docker-compose`
 - Создайте файл `/infra/.env`. Шаблон для заполнения файла нахоится в `/infra/.env.example`

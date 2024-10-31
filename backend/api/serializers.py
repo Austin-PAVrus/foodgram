@@ -7,29 +7,43 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import exceptions, serializers
 
 from recipes.models import (
-    FavoriteRecipe, Ingredient,
+    FavoriteRecipe,
+    ERROR_MORE_INGREDIENT,
+    Ingredient,
     MIN_INGREDIENT_AMOUNT,
-    Recipe, RecipeIngredient,
-    ShoppingCart, Subscription, Tag
+    Recipe,
+    RecipeIngredient,
+    ShoppingCart,
+    Subscription,
+    Tag
 )
 
 from recipes.validators import validate_username
 
+MIN_INGREDIENTS_COUNT = 1
 ERROR_NO_INGREDIENTS = (
-    f'Минимальное число продуктов в рецепте: {MIN_INGREDIENT_AMOUNT}'
+    f'Минимальное число продуктов в рецепте: {MIN_INGREDIENTS_COUNT}'
 )
-MIN_TAGS_AMOUNT = 1,
-ERROR_NO_TAGS = f'Минимальное число ярлыокв рецепта: {MIN_TAGS_AMOUNT}'
+ERROR_NO_TAGS = 'У рещепта должны быть ярлыки'
 ERROR_DUPLICATE = 'Обнаружены дупликаты: {duplicates}'
 ERROR_ALREADY_IN_CART = 'Рецепт уже в корзине'
 ERROR_ALREADY_FAVED = 'Рецепт уже в избранных'
 ERROR_RECIPE_LIMIT_NOT_INT = 'recipe_limit должно быть целым числом'
-ERROR_EMPTY_BASE64IMAGE = 'Поле {image} не может быть пустым'
+ERROR_EMPTY_BASE64IMAGE = 'Поле image не может быть пустым'
 TAG = 'Ярлык'
 INGREDIENT = 'Продукт'
 
 
 User = get_user_model()
+
+
+def CheckUserInCollection(user, collection):
+    return (
+        not user.is_anonymous
+        and collection.filter(
+            user=user
+        ).exists()
+    )
 
 
 class UserSerializer(DjoserUserSerializer):
@@ -48,13 +62,11 @@ class UserSerializer(DjoserUserSerializer):
         return validate_username(username)
 
     def get_is_subscribed(self, author):
-        user = self.context['request'].user
-        return (
-            not user.is_anonymous
-            and Subscription.objects.filter(
-                user=user,
+        return CheckUserInCollection(
+            self.context['request'].user,
+            Subscription.objects.filter(
                 author=author
-            ).exists()
+            )
         )
 
 
@@ -103,6 +115,12 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
             'amount',
         )
 
+    def validate_amount(self, amount):
+        if amount < MIN_INGREDIENT_AMOUNT:
+            raise ValueError({
+                {'detail': ERROR_MORE_INGREDIENT}
+            })
+
 
 class RecipeShortSafeSerializer(
     serializers.ModelSerializer
@@ -141,22 +159,20 @@ class RecipeSafeSerializer(
         )
 
     def get_is_favorited(self, recipe):
-        user = self.context['request'].user
-        if user.is_anonymous:
-            return False
-        return FavoriteRecipe.objects.filter(
-            user=user,
-            recipe=recipe
-        ).exists()
+        return CheckUserInCollection(
+            self.context['request'].user,
+            FavoriteRecipe.objects.filter(
+                recipe=recipe
+            )
+        )
 
     def get_is_in_shopping_cart(self, recipe):
-        user = self.context['request'].user
-        if user.is_anonymous:
-            return False
-        return ShoppingCart.objects.filter(
-            user=user,
-            recipe=recipe
-        ).exists()
+        return CheckUserInCollection(
+            self.context['request'].user,
+            ShoppingCart.objects.filter(
+                recipe=recipe
+            )
+        )
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -197,13 +213,9 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate_image(self, image):
         if not image:
-            raise serializers.ValidationError(
-                {
-                    'detail': ERROR_EMPTY_BASE64IMAGE.format(
-                        image='image'
-                    )
-                }
-            )
+            raise serializers.ValidationError({
+                'detail': ERROR_EMPTY_BASE64IMAGE
+            })
         return image
 
     def update_tags(self, recipe, tags):
@@ -224,15 +236,14 @@ class RecipeSerializer(serializers.ModelSerializer):
             ingredient['ingredient']['id'] for ingredient in ingredients
         ]
         self.find_duplicates(ingredients_ids, INGREDIENT)
-        recipe_ingredients = [
-            RecipeIngredient(
-                recipe=recipe,
-                ingredient=ingredient['ingredient']['id'],
-                amount=ingredient['amount'],
-            ) for ingredient in ingredients
-        ]
         RecipeIngredient.objects.bulk_create(
-            recipe_ingredients,
+            [
+                RecipeIngredient(
+                    recipe=recipe,
+                    ingredient=ingredient['ingredient']['id'],
+                    amount=ingredient['amount'],
+                ) for ingredient in ingredients
+            ],
             ignore_conflicts=True
         )
 

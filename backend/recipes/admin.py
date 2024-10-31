@@ -14,46 +14,26 @@ from .models import (
 )
 
 
-FAST_COOKING = 5
-SLOW_COOKING = 60
 THUMBNAIL_WIDTH = 120
 THUMBNAIL_HEIGHTH = 100
-COOKING_TIME_RANGES = {
-    'fast': (0, FAST_COOKING),
-    'medium': (FAST_COOKING + 1, SLOW_COOKING - 1),
-    'slow': (SLOW_COOKING, maxsize),
-}
 
 
-class SubscribtionsFilter(admin.SimpleListFilter):
+class SubscribtionsRecipesFilter(admin.SimpleListFilter):
 
-    title = 'Подписчики'
-    parameter_name = 'has_subscribers_or_are_subscribed_authors'
+    title = 'Подписки и рецепты'
+    parameter_name = 'has_recipes_has_subscribers_are_subscribed_authors'
 
     def lookups(self, request, model_admin):
         return (
             ('subscribers', 'С подписчиками'),
             ('authors', 'С подписками'),
+            ('recipes', 'С рецептами')
         )
 
     def queryset(self, request, users):
         if self.value():
             return users.filter(Q(**{f'{self.value()}__isnull': False}))
-
-
-class RecipesFilter(admin.SimpleListFilter):
-
-    title = 'Наличие рецептов'
-    parameter_name = 'has_recepies'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('recipes', 'С рецептами'),
-        )
-
-    def queryset(self, request, users):
-        if self.value():
-            return users.filter(Q(**{f'{self.value()}__isnull': False}))
+        return users
 
 
 @admin.register(User)
@@ -71,7 +51,7 @@ class FoodgramUserAdmin(UserAdmin):
     UserAdmin.fieldsets += ('Аватар', {'fields': ('avatar',)}),
     search_fields = ('username', 'email')
     list_filter = (
-        SubscribtionsFilter, RecipesFilter
+        SubscribtionsRecipesFilter,
     )
 
     @admin.display(description='Аватар')
@@ -96,37 +76,40 @@ class FoodgramUserAdmin(UserAdmin):
 
 class CookingTimeFilter(admin.SimpleListFilter):
 
+    FAST_COOKING = 5
+    SLOW_COOKING = 60
+    COOKING_TIME_RANGES = {
+        'fast': (0, FAST_COOKING),
+        'medium': (FAST_COOKING + 1, SLOW_COOKING - 1),
+        'slow': (SLOW_COOKING, maxsize),
+    }
+
     title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
-    @staticmethod
-    def get_recipes(type):
-        return Recipe.objects.filter(
-            cooking_time__range=COOKING_TIME_RANGES[type]
+    @classmethod
+    def get_filtered_recipes(cls, recipes, recipe_type):
+        return recipes.filter(
+            cooking_time__range=cls.COOKING_TIME_RANGES[recipe_type]
         )
 
     def lookups(self, request, model_admin):
         recipes_count = {
-            type: self.get_recipes(type).count() for type
-            in COOKING_TIME_RANGES.keys()
+            recipe_type: self.get_filtered_recipes(
+                Recipe.objects.all(),
+                recipe_type,
+            ).count() for recipe_type
+            in self.COOKING_TIME_RANGES
         }
-        return (
-            (
-                type,
-                str(time_range).translate(
-                    {
-                        ord('('): None,
-                        ord(')'): None,
-                    }
-                ).replace(', ', ' - ') + ' vин: ' + str(
-                    recipes_count[type]
-                )
-            ) for type, time_range in COOKING_TIME_RANGES.items()
-        )
+        return [
+            (name, f'{" - ".join(map(str, range))} мин: {recipes_count[name]}')
+            for name, range in self.COOKING_TIME_RANGES.items()
+        ]
 
     def queryset(self, request, recipes):
         if self.value():
-            return self.get_recipes(self.value())
+            return self.get_filtered_recipes(recipes, self.value())
+        return recipes
 
 
 class RecipeIngredientInline(admin.TabularInline):
@@ -169,7 +152,7 @@ class RecipeAdmin(admin.ModelAdmin):
     def tags_list(self, recipe):
         return '<br/>'.join(tag.name for tag in recipe.tags.all())
 
-    @admin.display(description='Ингридиенты')
+    @admin.display(description='Продукты')
     @mark_safe
     def ingredients_list(self, recipe):
         return '<br/>'.join(
@@ -189,9 +172,9 @@ class RecipeAdmin(admin.ModelAdmin):
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ('name', 'measurement_unit', 'recipes_count')
     list_filter = ('measurement_unit',)
-    search_fields = ('name__istartswith',)
+    search_fields = ('name__istartswith', 'measurement_unit')
 
-    @admin.display(description='Вхождений в рецепты')
+    @admin.display(description='В рецептах')
     def recipes_count(self, ingredient):
         return ingredient.recipes.count()
 
