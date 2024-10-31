@@ -2,6 +2,7 @@ from sys import maxsize
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Group
 from django.db.models import Q
 from django.utils.safestring import mark_safe
 
@@ -17,6 +18,8 @@ from .models import (
 THUMBNAIL_WIDTH = 120
 THUMBNAIL_HEIGHTH = 100
 
+admin.site.unregister(Group)
+
 
 class SubscribtionsRecipesFilter(admin.SimpleListFilter):
 
@@ -25,14 +28,16 @@ class SubscribtionsRecipesFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('subscribers', 'С подписчиками'),
-            ('authors', 'С подписками'),
+            ('authors', 'С подписчиками'),
+            ('subscribers', 'С подписками'),
             ('recipes', 'С рецептами')
         )
 
     def queryset(self, request, users):
         if self.value():
-            return users.filter(Q(**{f'{self.value()}__isnull': False}))
+            return users.filter(
+                ~Q(**{f'{self.value()}__isnull': False})
+            ).distinct()
         return users
 
 
@@ -165,7 +170,7 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='Добавлений в избранное')
     def favs_count(self, recipe):
-        return recipe.favs.count()
+        return recipe.favoriterecipes.count()
 
 
 @admin.register(Ingredient)
@@ -181,8 +186,12 @@ class IngredientAdmin(admin.ModelAdmin):
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'slug')
+    list_display = ('id', 'name', 'slug', 'recipes_count')
     search_fields = ('name__istartswith', 'slug')
+
+    @admin.display(description='В рецептах')
+    def recipes_count(self, ingredient):
+        return ingredient.recipes.count()
 
 
 @admin.register(FavoriteRecipe)

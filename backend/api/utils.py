@@ -1,9 +1,10 @@
 from datetime import datetime
+from io import BytesIO
 
 
 def generate_content(ingredients, recipes):
     current_time = datetime.now()
-    return ('\n'.join((
+    return BytesIO(bytes('\n'.join((
         f'{current_time.strftime("%d.%m.%Y %X %Z")}',
         'Список продуктов:',
         *[
@@ -19,11 +20,10 @@ def generate_content(ingredients, recipes):
         ],
         'для приготовления:',
         *[
-            (
-                f'{line}. {recipe["name"]}'
-            ) for line, recipe in enumerate(
+            f'{line}. {recipe["name"]}'
+            for line, recipe in enumerate(
                 recipes,
                 start=1,
             )
         ],
-    )))
+    )).encode()))

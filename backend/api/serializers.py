@@ -37,11 +37,12 @@ INGREDIENT = 'Продукт'
 User = get_user_model()
 
 
-def CheckUserInCollection(user, collection):
+def CalculateFilterObjectExists(model, user, **kwargs):
     return (
         not user.is_anonymous
-        and collection.filter(
-            user=user
+        and model.objects.filter(
+            user=user,
+            **kwargs,
         ).exists()
     )
 
@@ -62,11 +63,10 @@ class UserSerializer(DjoserUserSerializer):
         return validate_username(username)
 
     def get_is_subscribed(self, author):
-        return CheckUserInCollection(
-            self.context['request'].user,
-            Subscription.objects.filter(
-                author=author
-            )
+        return CalculateFilterObjectExists(
+            model=Subscription,
+            user=self.context['request'].user,
+            author=author
         )
 
 
@@ -120,6 +120,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
             raise ValueError({
                 {'detail': ERROR_MORE_INGREDIENT}
             })
+        return amount
 
 
 class RecipeShortSafeSerializer(
@@ -159,19 +160,17 @@ class RecipeSafeSerializer(
         )
 
     def get_is_favorited(self, recipe):
-        return CheckUserInCollection(
-            self.context['request'].user,
-            FavoriteRecipe.objects.filter(
-                recipe=recipe
-            )
+        return CalculateFilterObjectExists(
+            model=FavoriteRecipe,
+            user=self.context['request'].user,
+            recipe=recipe,
         )
 
     def get_is_in_shopping_cart(self, recipe):
-        return CheckUserInCollection(
-            self.context['request'].user,
-            ShoppingCart.objects.filter(
-                recipe=recipe
-            )
+        return CalculateFilterObjectExists(
+            model=ShoppingCart,
+            user=self.context['request'].user,
+            recipe=recipe,
         )
 
 
@@ -236,14 +235,12 @@ class RecipeSerializer(serializers.ModelSerializer):
             ingredient['ingredient']['id'] for ingredient in ingredients
         ]
         self.find_duplicates(ingredients_ids, INGREDIENT)
-        RecipeIngredient.objects.bulk_create(
-            [
-                RecipeIngredient(
-                    recipe=recipe,
-                    ingredient=ingredient['ingredient']['id'],
-                    amount=ingredient['amount'],
-                ) for ingredient in ingredients
-            ],
+        RecipeIngredient.objects.bulk_create([
+            RecipeIngredient(
+                recipe=recipe,
+                ingredient=ingredient['ingredient']['id'],
+                amount=ingredient['amount'],
+            ) for ingredient in ingredients],
             ignore_conflicts=True
         )
 

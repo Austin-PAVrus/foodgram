@@ -85,21 +85,21 @@ class UserViewSet(DjoserUserViewSet):
             if Subscription.objects.filter(
                 user=user,
                 author=author,
-            ).delete()[0] > 0:
-                return Response(status=HTTPStatus.NO_CONTENT)
-            raise ValidationError({'detail': ERROR_NO_SUBSCRIPRION})
-        if Subscription.objects.get_or_create(
+            ).delete()[0] == 0:
+                raise ValidationError({'detail': ERROR_NO_SUBSCRIPRION})
+            return Response(status=HTTPStatus.NO_CONTENT)
+        if not Subscription.objects.get_or_create(
             user=user,
             author=author
         )[1]:
-            return Response(
-                SubscriptionSerializer(
-                    author,
-                    context={'request': request},
-                ).data,
-                status=HTTPStatus.CREATED
-            )
-        raise ValidationError({'detail': ERROR_ALREADY_SUBSCRIPTED})
+            raise ValidationError({'detail': ERROR_ALREADY_SUBSCRIPTED})
+        return Response(
+            SubscriptionSerializer(
+                author,
+                context={'request': request},
+            ).data,
+            status=HTTPStatus.CREATED
+        )
 
     @action(detail=False,
             methods=('get',),
@@ -110,7 +110,7 @@ class UserViewSet(DjoserUserViewSet):
         return self.get_paginated_response(
             SubscriptionSerializer(
                 self.paginate_queryset(
-                    User.objects.filter(subscribers__user=self.request.user)
+                    User.objects.filter(authors__user=self.request.user)
                 ),
                 many=True,
                 context={'request': request},
@@ -152,21 +152,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
             if model.objects.filter(
                 user=request.user,
                 recipe=recipe,
-            ).delete()[0] > 0:
-                return Response(status=HTTPStatus.NO_CONTENT)
-            raise ValidationError({'detail': ERROR_NO_RECIPE})
-        if model.objects.get_or_create(
+            ).delete()[0] == 0:
+                raise ValidationError({'detail': ERROR_NO_RECIPE})
+            return Response(status=HTTPStatus.NO_CONTENT)
+        if not model.objects.get_or_create(
             user=request.user,
             recipe=recipe,
         )[1]:
-            return Response(
-                RecipeShortSafeSerializer(
-                    recipe,
-                    context={'request': request},
-                ).data,
-                status=HTTPStatus.CREATED
-            )
-        raise ValidationError({'detail': ERROR_RECIPE_ALREADY_ADDED})
+            raise ValidationError({'detail': ERROR_RECIPE_ALREADY_ADDED})
+        return Response(
+            RecipeShortSafeSerializer(
+                recipe,
+                context={'request': request},
+            ).data,
+            status=HTTPStatus.CREATED
+        )
 
     @action(detail=True,
             methods=('post', 'delete'),
@@ -227,6 +227,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 {'Recipe': 'pk'},
             )
         return Response(
-            {'short-link': f'/{settings.SHORT_RECIPE_ENDPOINT}/{pk}'},
+            {
+                'short-link': request.build_absolute_uri(
+                    f'/{settings.SHORT_RECIPE_ENDPOINT}/{pk}',
+                )
+            },
             status=HTTPStatus.OK,
         )
