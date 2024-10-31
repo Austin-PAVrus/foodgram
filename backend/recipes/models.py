@@ -105,19 +105,19 @@ class Tag(models.Model):
     name = models.CharField(
         unique=True,
         max_length=MAX_RECIPE_NAME_LENGTH,
-        verbose_name='Ярлык',
+        verbose_name='Название ярлыка',
         help_text='Введите название ярлыка',
     )
 
     slug = models.SlugField(
         unique=True,
         max_length=MAX_RECIPE_NAME_LENGTH,
-        verbose_name='Идентификатор ярлыка',
-        help_text='Введите идентификатор ярлыка',
+        verbose_name='Идентификатор',
+        help_text='Введите идентификатор',
     )
 
     class Meta:
-        ordering = ['slug']
+        ordering = ('slug',)
         verbose_name = 'Ярлык'
         verbose_name_plural = 'Ярлыки'
 
@@ -128,14 +128,14 @@ class Tag(models.Model):
 class Ingredient(models.Model):
     name = models.CharField(
         max_length=MAX_RECIPE_NAME_LENGTH,
-        verbose_name='Продукт',
+        verbose_name='Название продукта',
         help_text='Введите название продукта',
     )
 
     measurement_unit = models.CharField(
         max_length=MAX_MEASUREMENT_UNIT_LENGTH,
-        verbose_name='Мера',
-        help_text='Введите название меры',
+        verbose_name='Единица измерения',
+        help_text='Введите название единицы измерения',
     )
 
     class Meta:
@@ -169,33 +169,25 @@ class Recipe(models.Model):
     )
     tags = models.ManyToManyField(
         Tag,
-        db_index=True,
         verbose_name='Список ярлыков',
         help_text='Введите список ярлыков',
     )
     ingredients = models.ManyToManyField(
         Ingredient,
-        db_index=True,
         through='RecipeIngredient',
         verbose_name='Список продуктов',
         help_text='Укажите продукты для приготовления блюда',
     )
     image = models.ImageField(
         upload_to='recipes/',
-        null=False,
-        blank=False,
         verbose_name='Изображение блюда',
         help_text='Загрузите изображение блюда',
     )
     text = models.TextField(
-        null=False,
-        blank=False,
         verbose_name='Описание рецепта',
         help_text='Введите описание рецепта',
     )
     cooking_time = models.PositiveIntegerField(
-        null=False,
-        blank=False,
         validators=[
             MinValueValidator(
                 MIN_COOKING_TIME,
@@ -208,7 +200,6 @@ class Recipe(models.Model):
         help_text='Время приготовления в минутах',
     )
     pub_date = models.DateTimeField(
-        db_index=True,
         auto_now_add=True,
         verbose_name='Дата публикации',
     )
@@ -236,11 +227,11 @@ class RecipeIngredient(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
-        verbose_name='Ингридиент',
+        verbose_name='Продукт',
     )
 
     amount = models.PositiveIntegerField(
-        verbose_name='Мера продукта в рецепте',
+        verbose_name='Мера',
         validators=[
             MinValueValidator(
                 limit_value=MIN_INGREDIENT_AMOUNT,
@@ -250,8 +241,8 @@ class RecipeIngredient(models.Model):
     )
 
     class Meta:
-        verbose_name = 'Связь продукта c рецептом'
-        verbose_name_plural = 'Связи продуктов c рецептами'
+        verbose_name = 'Продукт в рецепте'
+        verbose_name_plural = 'Продукты в рецептах'
         default_related_name = 'recipes_ingredients'
         ordering = ('recipe', 'ingredient',)
         constraints = [
@@ -269,7 +260,7 @@ class RecipeIngredient(models.Model):
         )
 
 
-class UserRecipeTemplate(models.Model):
+class AbstractUserRecipe(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -284,6 +275,7 @@ class UserRecipeTemplate(models.Model):
     class Meta:
         abstract = True
         ordering = ('user', 'recipe',)
+        default_related_name = '%(class)s'
         constraints = (
             models.UniqueConstraint(
                 fields=('user', 'recipe',),
@@ -295,17 +287,17 @@ class UserRecipeTemplate(models.Model):
         return f'{self.user.username}: {self.recipe.name[:STR_MAX_LENGHT]}'
 
 
-class FavoriteRecipe(UserRecipeTemplate):
+class FavoriteRecipe(AbstractUserRecipe):
 
-    class Meta(UserRecipeTemplate.Meta):
+    class Meta(AbstractUserRecipe.Meta):
         verbose_name = 'Избранный рецепт'
         verbose_name_plural = 'Избранные рецепты'
         default_related_name = 'favs'
 
 
-class ShoppingCart(UserRecipeTemplate):
+class ShoppingCart(AbstractUserRecipe):
 
-    class Meta(UserRecipeTemplate.Meta):
+    class Meta(AbstractUserRecipe.Meta):
         verbose_name = 'Продуктовая корзина'
         verbose_name_plural = 'Продуктовые корзины'
-        default_related_name = 'cart'
+        default_related_name = 'carts'

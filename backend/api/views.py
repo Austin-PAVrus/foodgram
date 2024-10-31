@@ -1,6 +1,9 @@
+from datetime import datetime
 from http import HTTPStatus
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet as DjoserUserViewSet
@@ -23,17 +26,12 @@ from .serializers import (
     UserAvatarSerializer,
 )
 from .utils import generate_shopping_file
-from foodgram_backend.settings import (
-    SELF_ENDPOINT,
-    SHORT_RECIPE_ENDPOINT,
-    SUBSCRIPTIONS_ENDPOINT,
-)
+
 from recipes.models import (
     FavoriteRecipe, Ingredient, Recipe, ShoppingCart, Subscription, Tag
 )
 
 
-ERROR_WRONG_PASSWORD = 'Вы ввели неверный пароль'
 ERROR_NO_SUBSCRIPRION = 'Подписки не было'
 ERROR_NO_RECIPE = 'Рецепт не найден'
 ERROR_NO_SELF_SUBSCRIPTION = 'Самоподписка не поддерживается'
@@ -46,18 +44,15 @@ User = get_user_model()
 class UserViewSet(DjoserUserViewSet):
 
     queryset = User.objects.all()
-    permission_classes = (AllowAny,)
 
     def get_permissions(self):
         if self.action == 'me':
-            permissions = (IsAuthenticated,)
-        else:
-            permissions = self.permission_classes
-        return [permission() for permission in permissions]
+            return (IsAuthenticated(),)
+        return super().get_permissions()
 
     @action(detail=False,
             methods=('put', 'delete'),
-            url_path=SELF_ENDPOINT + '/avatar',
+            url_path=settings.SELF_ENDPOINT + '/avatar',
             permission_classes=(IsAuthenticated,)
             )
     def avatar_endpoint(self, request):
@@ -71,9 +66,9 @@ class UserViewSet(DjoserUserViewSet):
             data=request.data,
             context={'request': request},
         )
-        if serializer.is_valid(raise_exception=True):
-            serializer.save(user=request.user)
-            return Response(serializer.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user)
+        return Response(serializer.data)
 
     @action(detail=True,
             methods=('post', 'delete'),
@@ -82,22 +77,20 @@ class UserViewSet(DjoserUserViewSet):
     def subscribe(self, request, id):
         user = request.user
         author = get_object_or_404(User, id=id)
-        subsccription_filter = Subscription.objects.filter(
-            user=user,
-            author=author,
-        )
-        if request.method == 'DELETE':
-            if subsccription_filter.delete()[0] > 0:
-                return Response(status=HTTPStatus.NO_CONTENT)
-            raise ValidationError({'detail': ERROR_NO_SUBSCRIPRION})
-        if subsccription_filter.count() > 0:
-            raise ValidationError({'detail': ERROR_ALREADY_SUBSCRIPTED})
         if author == user:
             raise ValidationError({'detail': ERROR_NO_SELF_SUBSCRIPTION})
-        Subscription.objects.create(
+        if request.method == 'DELETE':
+            if Subscription.objects.filter(
+                user=user,
+                author=author,
+            ).delete()[0] > 0:
+                return Response(status=HTTPStatus.NO_CONTENT)
+            raise ValidationError({'detail': ERROR_NO_SUBSCRIPRION})
+        if not Subscription.objects.get_or_create(
             user=user,
             author=author
-        )
+        )[1]:
+            raise ValidationError({'detail': ERROR_ALREADY_SUBSCRIPTED})
         return Response(
             SubscriptionSerializer(
                 author,
@@ -108,7 +101,7 @@ class UserViewSet(DjoserUserViewSet):
 
     @action(detail=False,
             methods=('get',),
-            url_path=SUBSCRIPTIONS_ENDPOINT,
+            url_path=settings.SUBSCRIPTIONS_ENDPOINT,
             permission_classes=(IsAuthenticated,),
             )
     def subscriptions(self, request):
@@ -150,6 +143,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthorOrReadOnly,)
     filterset_class = RecipeFilter
 
+    def get_permissions(self):
+        if self.action == 'create':
+            return (IsAuthenticated(),)
+        return super().get_permissions()
+
     @staticmethod
     def modify_recipe_connection(request, pk, model):
         recipe = get_object_or_404(Recipe, id=pk)
@@ -160,12 +158,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
             ).delete()[0] > 0:
                 return Response(status=HTTPStatus.NO_CONTENT)
             raise ValidationError({'detail': ERROR_NO_RECIPE})
-        if model.objects.filter(recipe=recipe).exists():
-            raise ValidationError({'detail': ERROR_RECIPE_ALREADY_ADDED})
-        model.objects.create(
+        if not model.objects.get_or_create(
             user=request.user,
             recipe=recipe,
-        )
+        )[1]:
+            raise ValidationError({'detail': ERROR_RECIPE_ALREADY_ADDED})
         return Response(
             RecipeShortSafeSerializer(
                 recipe,
@@ -202,13 +199,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
     def download_shopping_cart(self, request):
         user = request.user
-        if not user.cart.exists():
+        if not user.carts.exists():
             return Response(status=HTTPStatus.NOT_FOUND)
-
+        current_time = datetime.now()
         return FileResponse(
-            generate_shopping_file(user),
+            generate_shopping_file(
+                current_time=current_time,
+                ingredients=Ingredient.objects.filter(
+                    recipes_ingredients__recipe__carts__user=user
+                ).annotate(
+                    amount=Sum("recipes_ingredients__amount")
+                ).order_by('name').values(),
+                recipes=Recipe.objects.filter(
+                    carts__user=user
+                ).order_by('name').values('name'),
+            ),
             as_attachment=True,
-            filename='to_buy.txt',
+            filename=f'to_buy_{current_time.strftime("%Y%m%d")}.txt'
         )
 
     @action(detail=True,
@@ -217,8 +224,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=(AllowAny,)
             )
     def get_link(self, request, pk):
-        recipe = get_object_or_404(Recipe, id=pk)
-        short_url = request.build_absolute_uri(
-            f'/{SHORT_RECIPE_ENDPOINT}/{recipe.id}'
+        if not Recipe.objects.filter(id=pk).exists():
+            raise ValidationError(code=HTTPStatus.NOT_FOUND)
+        return Response(
+            {'short-link': f'/{settings.SHORT_RECIPE_ENDPOINT}/{pk}'},
+            status=HTTPStatus.OK,
         )
-        return Response({'short-link': short_url}, status=HTTPStatus.OK)

@@ -41,7 +41,7 @@ class RecipeFilter(filter.FilterSet):
 
     def is_in_shopping_cart_filter(self, recipes, name, value):
         if value and self.request.user.is_authenticated:
-            return recipes.filter(cart__user=self.request.user)
+            return recipes.filter(carts__user=self.request.user)
         return recipes
 
     def is_in_favs_filter(self, queryset, name, value):

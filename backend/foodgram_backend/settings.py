@@ -24,8 +24,6 @@ SUBSCRIPTIONS_ENDPOINT = 'subscriptions'
 
 SHORT_RECIPE_ENDPOINT = 's'
 
-RESTRICTED_ENDPOINTS = [SELF_ENDPOINT, SUBSCRIPTIONS_ENDPOINT]
-
 
 # Application definition
 
@@ -142,6 +140,10 @@ DJOSER = {
         'user': 'api.serializers.UserSerializer',
         'current_user': 'api.serializers.UserSerializer',
     },
+    'PERMISSIONS': {
+        'user': ('rest_framework.permissions.IsAuthenticatedOrReadOnly',),
+        'user_list': ('rest_framework.permissions.IsAuthenticatedOrReadOnly',),
+    }
 }
 
 

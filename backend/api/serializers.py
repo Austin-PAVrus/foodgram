@@ -1,3 +1,5 @@
+from sys import maxsize
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from djoser.serializers import UserSerializer as DjoserUserSerializer
@@ -14,11 +16,11 @@ from recipes.models import (
 from recipes.validators import validate_username
 
 ERROR_NO_INGREDIENTS = (
-    f'В рецепте должен быть хотя бы {MIN_INGREDIENT_AMOUNT} продукт'
+    f'Минимальное число продуктов в рецепте: {MIN_INGREDIENT_AMOUNT}'
 )
 MIN_TAGS_AMOUNT = 1,
-ERROR_NO_TAGS = f'У рецепта должен быть хотя бы {MIN_TAGS_AMOUNT} ярлык'
-ERROR_DUPLICATE = '{item_type} не должен повторяться: {duplicates}'
+ERROR_NO_TAGS = f'Минимальное число ярлыокв рецепта: {MIN_TAGS_AMOUNT}'
+ERROR_DUPLICATE = 'Обнаружены дупликаты: {duplicates}'
 ERROR_ALREADY_IN_CART = 'Рецепт уже в корзине'
 ERROR_ALREADY_FAVED = 'Рецепт уже в избранных'
 ERROR_RECIPE_LIMIT_NOT_INT = 'recipe_limit должно быть целым числом'
@@ -47,12 +49,13 @@ class UserSerializer(DjoserUserSerializer):
 
     def get_is_subscribed(self, author):
         user = self.context['request'].user
-        if user.is_anonymous:
-            return False
-        return Subscription.objects.filter(
-            user=user,
-            author=author
-        ).exists()
+        return (
+            not user.is_anonymous
+            and Subscription.objects.filter(
+                user=user,
+                author=author
+            ).exists()
+        )
 
 
 class UserAvatarSerializer(serializers.ModelSerializer):
@@ -70,22 +73,14 @@ class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tag
-        fields = (
-            'id',
-            'name',
-            'slug',
-        )
+        fields = '__all__'
 
 
 class IngredientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Ingredient
-        fields = (
-            'id',
-            'name',
-            'measurement_unit',
-        )
+        fields = '__all__'
 
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
@@ -168,7 +163,7 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
-        many=True
+        many=True,
     )
     author = serializers.PrimaryKeyRelatedField(
         read_only=True,
@@ -197,14 +192,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         duplicates = {item for item in items if items.count(item) > 1}
         if duplicates:
             raise serializers.ValidationError(
-                ERROR_DUPLICATE.format(
-                    item_type=item_type,
-                    duplicates=duplicates,
-                )
+                {item_type: ERROR_DUPLICATE.format(duplicates=duplicates)}
             )
 
-    def validate_image(self, value):
-        if not value:
+    def validate_image(self, image):
+        if not image:
             raise serializers.ValidationError(
                 {
                     'detail': ERROR_EMPTY_BASE64IMAGE.format(
@@ -212,10 +204,10 @@ class RecipeSerializer(serializers.ModelSerializer):
                     )
                 }
             )
-        return value
+        return image
 
     def update_tags(self, recipe, tags):
-        if not len(tags):
+        if not tags:
             raise exceptions.ValidationError(
                 ERROR_NO_TAGS
             )
@@ -224,7 +216,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         recipe.tags.set(tags)
 
     def update_ingredients(self, recipe, ingredients):
-        if not len(ingredients):
+        if not ingredients:
             raise exceptions.ValidationError(
                 ERROR_NO_INGREDIENTS
             )
@@ -239,15 +231,17 @@ class RecipeSerializer(serializers.ModelSerializer):
                 amount=ingredient['amount'],
             ) for ingredient in ingredients
         ]
-        RecipeIngredient.objects.filter(recipe=recipe).delete()
-        RecipeIngredient.objects.bulk_create(recipe_ingredients)
+        RecipeIngredient.objects.bulk_create(
+            recipe_ingredients,
+            ignore_conflicts=True
+        )
 
     @transaction.atomic
     def create(self, validated_data):
         validated_data['author'] = self.context['request'].user
         ingredients = validated_data.pop('recipes_ingredients', [])
         tags = validated_data.pop('tags', [])
-        recipe = Recipe.objects.create(**validated_data)
+        recipe = super().create(validated_data)
         self.update_tags(recipe, tags)
         self.update_ingredients(recipe, ingredients)
         return recipe
@@ -284,29 +278,17 @@ class SubscriptionSerializer(UserSerializer):
             recipes_limit = int(
                 self.context.get(
                     'request'
-                ).query_params.get('recipes_limit', -1)
+                ).query_params.get('recipes_limit', maxsize)
             )
         except ValueError:
             raise serializers.ValidationError(
                 {'detail': ERROR_RECIPE_LIMIT_NOT_INT}
             )
-        if recipes_limit < 0:
-            return RecipeShortSafeSerializer(
-                Recipe.objects.filter(
-                    author=user
-                ),
-                context=self.context,
-                many=True
-            ).data
         return RecipeShortSafeSerializer(
-            Recipe.objects.filter(
-                author=user
-            )[:recipes_limit],
+            user.recipes.all()[:recipes_limit],
             context=self.context,
             many=True
         ).data
 
     def get_recipes_count(self, user):
-        return Recipe.objects.filter(
-            author=user
-        ).count()
+        return user.recipes.count()
