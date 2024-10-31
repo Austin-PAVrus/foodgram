@@ -1,3 +1,5 @@
+[![Foodgram Main Workflow](https://github.com/Austin-PAVrus/foodgram/actions/workflows/main.yml/badge.svg)](https://github.com/Austin-PAVrus/foodgram/actions/workflows/main.yml)
+
 # Foodrgam
 Продуктовый помощник - один из ключевых проектов курса Backend-разработки в Яндекс Практикумке.
 
