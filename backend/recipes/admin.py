@@ -28,8 +28,8 @@ class SubscribtionsRecipesFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('authors', 'С подписчиками'),
-            ('subscribers', 'С подписками'),
+            ('subscribers', 'С подписчиками'),
+            ('authors', 'С подписками'),
             ('recipes', 'С рецептами')
         )
 
