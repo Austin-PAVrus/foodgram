@@ -28,15 +28,15 @@ class SubscribtionsRecipesFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ('subscribers', 'С подписчиками'),
-            ('authors', 'С подписками'),
+            ('authors', 'С подписчиками'),
+            ('subscribers', 'С подписками'),
             ('recipes', 'С рецептами')
         )
 
     def queryset(self, request, users):
         if self.value():
             return users.filter(
-                ~Q(**{f'{self.value()}__isnull': False})
+                Q(**{f'{self.value()}__isnull': False})
             ).distinct()
         return users
 
@@ -119,6 +119,11 @@ class CookingTimeFilter(admin.SimpleListFilter):
 
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
+    readonly_fields = ['measurement_unit',]
+
+    @admin.display(description='Ед. изм.')
+    def measurement_unit(self, recioeingredient):
+        return recioeingredient.ingredient.measurement_unit
 
 
 class RecipeTagInline(admin.TabularInline):
@@ -168,7 +173,7 @@ class RecipeAdmin(admin.ModelAdmin):
             ) for ingredient in recipe.recipes_ingredients.all()
         )
 
-    @admin.display(description='Добавлений в избранное')
+    @admin.display(description='В избранном')
     def favs_count(self, recipe):
         return recipe.favoriterecipes.count()
 

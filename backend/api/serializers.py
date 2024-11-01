@@ -37,7 +37,7 @@ INGREDIENT = 'Продукт'
 User = get_user_model()
 
 
-def CalculateFilterObjectExists(model, user, **kwargs):
+def calculate_filter_object_exists(model, user, **kwargs):
     return (
         not user.is_anonymous
         and model.objects.filter(
@@ -63,7 +63,7 @@ class UserSerializer(DjoserUserSerializer):
         return validate_username(username)
 
     def get_is_subscribed(self, author):
-        return CalculateFilterObjectExists(
+        return calculate_filter_object_exists(
             model=Subscription,
             user=self.context['request'].user,
             author=author
@@ -107,6 +107,14 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+
+        amount = serializers.IntegerField(
+            min_value=MIN_INGREDIENT_AMOUNT,
+            error_messages={
+                'min_value': ERROR_MORE_INGREDIENT
+            }
+        )
+
         model = RecipeIngredient
         fields = (
             'id',
@@ -114,13 +122,6 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
             'measurement_unit',
             'amount',
         )
-
-    def validate_amount(self, amount):
-        if amount < MIN_INGREDIENT_AMOUNT:
-            raise ValueError({
-                {'detail': ERROR_MORE_INGREDIENT}
-            })
-        return amount
 
 
 class RecipeShortSafeSerializer(
@@ -160,14 +161,14 @@ class RecipeSafeSerializer(
         )
 
     def get_is_favorited(self, recipe):
-        return CalculateFilterObjectExists(
+        return calculate_filter_object_exists(
             model=FavoriteRecipe,
             user=self.context['request'].user,
             recipe=recipe,
         )
 
     def get_is_in_shopping_cart(self, recipe):
-        return CalculateFilterObjectExists(
+        return calculate_filter_object_exists(
             model=ShoppingCart,
             user=self.context['request'].user,
             recipe=recipe,
@@ -243,12 +244,12 @@ class RecipeSerializer(serializers.ModelSerializer):
                 recipe=recipe,
                 ingredient=ingredient,
             ).delete()
-        RecipeIngredient.objects.bulk_create([
+        RecipeIngredient.objects.bulk_create((
             RecipeIngredient(
                 recipe=recipe,
                 ingredient=ingredient['ingredient']['id'],
                 amount=ingredient['amount'],
-            ) for ingredient in ingredients],
+            ) for ingredient in ingredients),
             ignore_conflicts=True
         )
 
