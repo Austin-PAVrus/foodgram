@@ -72,11 +72,11 @@ class FoodgramUserAdmin(UserAdmin):
 
     @admin.display(description='Подписки')
     def total_subscriptions(self, user):
-        return user.authors.count()
+        return user.subscriptions.count()
 
     @admin.display(description='Подписчики')
     def total_subscribers(self, user):
-        return user.subscribers.count()
+        return user.authors.count()
 
 
 class CookingTimeFilter(admin.SimpleListFilter):
