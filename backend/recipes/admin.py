@@ -84,9 +84,9 @@ class CookingTimeFilter(admin.SimpleListFilter):
     FAST_COOKING = 5
     SLOW_COOKING = 60
     COOKING_TIME_RANGES = {
-        'fast': (0, FAST_COOKING),
-        'medium': (FAST_COOKING + 1, SLOW_COOKING - 1),
-        'slow': (SLOW_COOKING, maxsize),
+        f'<{FAST_COOKING} мин': (0, FAST_COOKING - 1),
+        f'<{SLOW_COOKING} мин': (FAST_COOKING, SLOW_COOKING),
+        'остальные': (SLOW_COOKING, maxsize),
     }
 
     title = 'Время приготовления'
@@ -107,8 +107,8 @@ class CookingTimeFilter(admin.SimpleListFilter):
             in self.COOKING_TIME_RANGES
         }
         return [
-            (name, f'{" - ".join(map(str, range))} мин: {recipes_count[name]}')
-            for name, range in self.COOKING_TIME_RANGES.items()
+            (name, f'{name}: {recipes_count[name]}')
+            for name in self.COOKING_TIME_RANGES
         ]
 
     def queryset(self, request, recipes):
