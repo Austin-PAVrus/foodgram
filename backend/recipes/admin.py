@@ -119,7 +119,7 @@ class CookingTimeFilter(admin.SimpleListFilter):
 
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
-    readonly_fields = ['measurement_unit',]
+    readonly_fields = ('measurement_unit',)
 
     @admin.display(description='Ед. изм.')
     def measurement_unit(self, recioeingredient):
