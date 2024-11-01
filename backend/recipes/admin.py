@@ -72,7 +72,7 @@ class FoodgramUserAdmin(UserAdmin):
 
     @admin.display(description='Подписки')
     def total_subscriptions(self, user):
-        return user.subscriptions.count()
+        return user.subscribers.count()
 
     @admin.display(description='Подписчики')
     def total_subscribers(self, user):
