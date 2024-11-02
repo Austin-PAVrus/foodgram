@@ -232,25 +232,17 @@ class RecipeSerializer(serializers.ModelSerializer):
             raise exceptions.ValidationError(
                 ERROR_NO_INGREDIENTS
             )
-        ingredients_ids = [
-            ingredient['ingredient']['id'] for ingredient in ingredients
-        ]
-        self.find_duplicates(ingredients_ids, INGREDIENT)
-        ingredients_to_delete = set(
-            Ingredient.objects.filter(recipes_ingredients__recipe=recipe)
-        ) - set(ingredients_ids)
-        for ingredient in ingredients_to_delete:
-            RecipeIngredient.objects.filter(
-                recipe=recipe,
-                ingredient=ingredient,
-            ).delete()
+        self.find_duplicates(
+            [ingredient['ingredient']['id'] for ingredient in ingredients],
+            INGREDIENT
+        )
+        RecipeIngredient.objects.filter(recipe=recipe).delete()
         RecipeIngredient.objects.bulk_create((
             RecipeIngredient(
                 recipe=recipe,
                 ingredient=ingredient['ingredient']['id'],
                 amount=ingredient['amount'],
             ) for ingredient in ingredients),
-            ignore_conflicts=True
         )
 
     @transaction.atomic

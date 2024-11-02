@@ -85,7 +85,7 @@ class CookingTimeFilter(admin.SimpleListFilter):
     SLOW_COOKING = 60
     COOKING_TIME_RANGES = {
         f'<{FAST_COOKING} мин': (0, FAST_COOKING - 1),
-        f'<{SLOW_COOKING} мин': (FAST_COOKING, SLOW_COOKING),
+        f'<{SLOW_COOKING} мин': (FAST_COOKING, SLOW_COOKING - 1),
         'остальные': (SLOW_COOKING, maxsize),
     }
 
@@ -119,11 +119,8 @@ class CookingTimeFilter(admin.SimpleListFilter):
 
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
-    readonly_fields = ('measurement_unit',)
-
-    @admin.display(description='Ед. изм.')
-    def measurement_unit(self, recioeingredient):
-        return recioeingredient.ingredient.measurement_unit
+    fields = ('ingredient', 'amount',)
+    autocomplete_fields = ('ingredient',)
 
 
 class RecipeTagInline(admin.TabularInline):

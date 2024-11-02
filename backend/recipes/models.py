@@ -150,7 +150,7 @@ class Ingredient(models.Model):
         ]
 
     def __str__(self):
-        return self.name[:STR_MAX_LENGHT]
+        return f'{self.name[:STR_MAX_LENGHT]} ({self.measurement_unit})'
 
 
 class Recipe(models.Model):
@@ -196,7 +196,7 @@ class Recipe(models.Model):
                 )
             ),
         ],
-        verbose_name='Время приготовления в минутах',
+        verbose_name='Время (мин)',
         help_text='Время приготовления в минутах',
     )
     pub_date = models.DateTimeField(
