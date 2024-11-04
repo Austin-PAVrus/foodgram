@@ -21,7 +21,10 @@ class Api {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement("a");
           var filename = "shopping-list";
-          if (res.headers.get('content-disposition')) {
+          if (
+            res.headers.get('content-disposition')  
+            && res.headers.get('content-disposition').indexOf('filename') !== -1
+          ) {
             filename = res.headers
               .get('content-disposition')
               .split('filename=')[1]
