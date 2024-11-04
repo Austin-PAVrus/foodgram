@@ -25,7 +25,7 @@ class Api {
             filename = res.headers
               .get('content-disposition')
               .split('filename=')[1]
-              .replace(/["']/g, "");;
+              .replace(/["']/g, "");
           }
           a.href = url;
           a.download = filename;
